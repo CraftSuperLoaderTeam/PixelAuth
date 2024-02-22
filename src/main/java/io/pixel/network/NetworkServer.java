@@ -16,6 +16,8 @@ import io.pixel.network.controller.NettyVarint21FrameEncoder;
 import io.pixel.network.handle.imp.HandshakeTCP;
 import io.pixel.network.packet.PacketDirection;
 import io.pixel.network.packet.PacketIndex;
+import io.pixel.util.text.TextComponentString;
+import io.pixel.util.text.TextComponentTranslation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
@@ -96,13 +98,33 @@ public class NetworkServer {
                     try{
                         connect.processReceivedPackets();
                     }catch (Exception e){
-
+                        LOGGER.error("Player connect was throw exception.",e);
                     }
                 }else {
                     iterator.remove();
                     connect.checkDisconnected();
                 }
             }
+        }
+    }
+
+    public void close(){
+        LOGGER.info("Closing network I/O...");
+        Iterator<PlayerConnect> iterator = this.connects.iterator();
+        while (iterator.hasNext()){
+            PlayerConnect connect = iterator.next();
+            if(connect.hasNoChannel()){
+                if(connect.isChannelOpen()){
+                    try{
+                        connect.getNetHandler().onDisconnect(new TextComponentTranslation("multiplayer.disconnect.server_shutdown"));
+                    }catch (Exception e){
+                        LOGGER.error("Player connect was throw exception.",e);
+                    }
+                }else {
+                    iterator.remove();
+                    connect.checkDisconnected();
+                }
+            }else iterator.remove();
         }
     }
 }

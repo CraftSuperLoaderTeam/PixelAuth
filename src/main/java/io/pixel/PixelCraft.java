@@ -6,6 +6,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.base64.Base64;
+import io.pixel.command.CommandHandle;
 import io.pixel.network.NetworkServer;
 import io.pixel.network.ServerStatusResponse;
 import io.pixel.util.CryptManager;
@@ -26,8 +27,8 @@ import java.security.KeyPair;
 import java.util.UUID;
 
 public class PixelCraft implements Runnable{
-    private static final Logger LOGGER = LogManager.getLogger(PixelCraft.class);
-    static PixelCraft instance;
+    public static final Logger LOGGER = LogManager.getLogger(PixelCraft.class);
+    public static PixelCraft instance;
     NetworkServer network;
     ServerConfig config;
     Thread server_thread;
@@ -37,11 +38,13 @@ public class PixelCraft implements Runnable{
     boolean isRunning;
     private boolean field_190519_A;
     MinecraftSessionService sessionService;
+    CommandHandle commandHandle;
 
     public PixelCraft(ServerConfig config){
         this.config = config;
         this.network = new NetworkServer(this);
         this.statusResponse = new ServerStatusResponse();
+        this.commandHandle = new CommandHandle(this);
         this.server_thread = new Thread(this);
         this.server_thread.setName("Server Thread");
         this.server_thread.start();
@@ -61,6 +64,10 @@ public class PixelCraft implements Runnable{
             LOGGER.fatal("Launch server was throw exception.",e);
             System.exit(-1);
         }
+    }
+
+    public void setRunning(boolean running) {
+        isRunning = running;
     }
 
     public void setServerOwner(String serverOwner) {
@@ -134,6 +141,10 @@ public class PixelCraft implements Runnable{
 
     public boolean isServerInOnlineMode() {
         return this.getConfig().isOnlineMode();
+    }
+
+    public NetworkServer getNetwork() {
+        return network;
     }
 
     public KeyPair getKeyPair() {
