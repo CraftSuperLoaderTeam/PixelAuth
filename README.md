@@ -9,13 +9,7 @@ Easy account verification server for Minecraft
 * The server does not have the logic to handle any Minecraft in-game.
 * The server is not compatible with Bukkit-based plugins
 * Players who enter the server will be kicked immediately, but you can implement features such as account verification before the player is kicked out
-
-## Network requests
-
-This server performs network requests to:
-
-* https://api.mojang.com - Check if the player has a Microsoft account
-* https://sessionserver.mojang.com - verify if the player is the owner of that account
+* We are fully protocol supported, you don't need to be verified with a specific Minecraft client
 
 ## Update
 
