@@ -3,10 +3,8 @@ package io.pixel.network.packet;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Maps;
-import io.pixel.network.packet.stats.PacketPing;
-import io.pixel.network.packet.stats.PacketPong;
-import io.pixel.network.packet.stats.PacketServerInfo;
-import io.pixel.network.packet.stats.PacketServerQuery;
+import io.pixel.network.packet.login.*;
+import io.pixel.network.packet.stats.*;
 import org.apache.logging.log4j.LogManager;
 
 import java.util.Map;
@@ -27,7 +25,12 @@ public enum PacketIndex {
     },
     LOGIN(2){
         {
-
+            this.registerPacket(PacketDirection.CLIENTBOUND, PacketDisconnect.class);
+            this.registerPacket(PacketDirection.CLIENTBOUND, PacketEncryptionRequest.class);
+            this.registerPacket(PacketDirection.CLIENTBOUND, PacketLoginSuccess.class);
+            this.registerPacket(PacketDirection.CLIENTBOUND, PacketEnableCompression.class);
+            this.registerPacket(PacketDirection.SERVERBOUND, PacketLoginStart.class);
+            this.registerPacket(PacketDirection.SERVERBOUND, PacketEncryptionResponse.class);
         }
     }
     ;

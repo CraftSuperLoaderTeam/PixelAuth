@@ -7,6 +7,7 @@ import io.netty.buffer.ByteBufOutputStream;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
 import io.netty.util.ByteProcessor;
+import io.pixel.util.text.ITextComponent;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,6 +44,10 @@ public class PacketBuffer extends ByteBuf {
         this.writeVarIntToBuffer(array.length);
         this.writeBytes(array);
         return this;
+    }
+
+    public PacketBuffer writeTextComponent(ITextComponent component) {
+        return this.writeString(ITextComponent.Serializer.componentToJson(component));
     }
 
     public byte[] readByteArray() {

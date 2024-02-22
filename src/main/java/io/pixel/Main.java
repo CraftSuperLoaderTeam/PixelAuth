@@ -23,6 +23,11 @@ public class Main {
                 .withRequiredArg()
                 .ofType(File.class)
                 .defaultsTo(new File("plugins"));
+        parser.acceptsAll(asList("singleplayer"), "")
+                .withRequiredArg()
+                .ofType(String.class)
+                .defaultsTo("")
+                .describedAs("");
 
         PixelCraft.launch(parser.parse(args));
     }

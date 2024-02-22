@@ -2,17 +2,25 @@ package io.pixel.network;
 
 import com.google.common.collect.Queues;
 import io.netty.channel.*;
+import io.netty.channel.local.LocalChannel;
+import io.netty.channel.local.LocalServerChannel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import io.pixel.network.controller.NettyEncryptingDecoder;
+import io.pixel.network.controller.NettyEncryptingEncoder;
 import io.pixel.network.handle.INetHandler;
 import io.pixel.network.packet.Packet;
 import io.pixel.network.packet.PacketDirection;
 import io.pixel.network.packet.PacketIndex;
+import io.pixel.schedule.NetworkTask;
+import io.pixel.util.CryptManager;
 import io.pixel.util.ThreadQuickExitException;
 import io.pixel.util.text.ITextComponent;
+import io.pixel.util.text.TextComponentTranslation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.crypto.SecretKey;
 import java.net.SocketAddress;
 import java.util.Queue;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -29,7 +37,9 @@ public class PlayerConnect extends SimpleChannelInboundHandler<Packet<?>> {
     private Channel channel;
     private INetHandler packetListener;
     private ITextComponent terminationReason;
+    private boolean disconnected;
     SocketAddress socketAddress;
+    private boolean isEncrypted;
 
 
     public PlayerConnect(PacketDirection packetDirection) {
@@ -49,14 +59,47 @@ public class PlayerConnect extends SimpleChannelInboundHandler<Packet<?>> {
         }
     }
 
+    public SocketAddress getRemoteAddress() {
+        return this.socketAddress;
+    }
+
+    public boolean isLocalChannel() {
+        return this.channel instanceof LocalChannel || this.channel instanceof LocalServerChannel;
+    }
+
     @Override
     protected void channelRead0(ChannelHandlerContext context, Packet<?> packet) throws Exception {
         if(this.channel.isOpen()){
             try {
                 ((Packet<INetHandler>) packet).processPacket(this.packetListener);
-            } catch (ThreadQuickExitException var4) {
-                ;
+            } catch (ThreadQuickExitException ignored) {
             }
+        }
+    }
+
+    public void enableEncryption(SecretKey key) {
+        this.isEncrypted = true;
+        this.channel.pipeline().addBefore("splitter", "decrypt", new NettyEncryptingDecoder(CryptManager.createNetCipherInstance(2, key)));
+        this.channel.pipeline().addBefore("prepender", "encrypt", new NettyEncryptingEncoder(CryptManager.createNetCipherInstance(1, key)));
+    }
+
+    public boolean hasNoChannel() {
+        return this.channel == null;
+    }
+
+    public ITextComponent getExitMessage() {
+        return this.terminationReason;
+    }
+
+    public void processReceivedPackets() {
+        this.flushOutboundQueue();
+
+        if (this.packetListener instanceof NetworkTask) {
+            ((NetworkTask) this.packetListener).update();
+        }
+
+        if (this.channel != null) {
+            this.channel.flush();
         }
     }
 
@@ -82,26 +125,44 @@ public class PlayerConnect extends SimpleChannelInboundHandler<Packet<?>> {
 
             channelfuture.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         } else {
-            this.channel.eventLoop().execute(new Runnable() {
-                public void run() {
-                    if (enumconnectionstate != enumconnectionstate1) {
-                        PlayerConnect.this.setConnectionState(enumconnectionstate);
-                    }
-
-                    ChannelFuture channelfuture1 = PlayerConnect.this.channel.writeAndFlush(inPacket);
-
-                    if (futureListeners != null) {
-                        channelfuture1.addListeners(futureListeners);
-                    }
-
-                    channelfuture1.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+            this.channel.eventLoop().execute(() -> {
+                if (enumconnectionstate != enumconnectionstate1) {
+                    PlayerConnect.this.setConnectionState(enumconnectionstate);
                 }
+
+                ChannelFuture channelfuture1 = PlayerConnect.this.channel.writeAndFlush(inPacket);
+
+                if (futureListeners != null) {
+                    channelfuture1.addListeners(futureListeners);
+                }
+
+                channelfuture1.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
             });
         }
     }
 
+    public INetHandler getNetHandler() {
+        return this.packetListener;
+    }
+
     public void setNetHandler(INetHandler handler) {
         this.packetListener = handler;
+    }
+
+    public void checkDisconnected() {
+        if (this.channel != null && !this.channel.isOpen()) {
+            if (this.disconnected) {
+                LOGGER.warn("handleDisconnection() called twice");
+            } else {
+                this.disconnected = true;
+
+                if (this.getExitMessage() != null) {
+                    this.getNetHandler().onDisconnect(this.getExitMessage());
+                } else if (this.getNetHandler() != null) {
+                    this.getNetHandler().onDisconnect(new TextComponentTranslation("multiplayer.disconnect.generic", new Object[0]));
+                }
+            }
+        }
     }
 
     private void flushOutboundQueue() {

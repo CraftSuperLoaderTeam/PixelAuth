@@ -10,13 +10,13 @@ import io.pixel.network.packet.stats.PacketServerQuery;
 import io.pixel.util.text.ITextComponent;
 import io.pixel.util.text.TextComponentString;
 
-public class NetHandlerStatusServer implements INetHandlerStatusServer {
+public class StatusServer implements INetHandlerStatusServer {
     private static final ITextComponent EXIT_MESSAGE = new TextComponentString("Status request has been handled.");
     private final PixelCraft server;
     private final PlayerConnect connect;
     private boolean handled;
 
-    public NetHandlerStatusServer(PixelCraft serverIn, PlayerConnect connect) {
+    public StatusServer(PixelCraft serverIn, PlayerConnect connect) {
         this.server = serverIn;
         this.connect = connect;
     }
