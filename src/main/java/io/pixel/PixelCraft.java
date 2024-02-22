@@ -59,7 +59,6 @@ public class PixelCraft implements Runnable{
                 String s = (String) option.valueOf("singleplayer");
                 if(s != null) PixelCraft.instance.setServerOwner(s);
             }
-            LOGGER.info("Generating keypair");
         }catch (Exception e){
             LOGGER.fatal("Launch server was throw exception.",e);
             System.exit(-1);
