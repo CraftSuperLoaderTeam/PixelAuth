@@ -12,7 +12,6 @@ public class GameProfile {
     private final PropertyMap properties = new PropertyMap();
     private boolean legacy;
 
-
     public GameProfile(UUID id, String name) {
         if (id == null && StringUtils.isBlank(name))
             throw new IllegalArgumentException("Name and ID cannot both be blank");
@@ -21,6 +20,9 @@ public class GameProfile {
         this.name = name;
     }
 
+    public void setLegacy(boolean legacy) {
+        this.legacy = legacy;
+    }
 
     public UUID getId() {
         return id;

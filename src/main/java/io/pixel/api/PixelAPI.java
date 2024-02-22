@@ -1,6 +1,7 @@
 package io.pixel.api;
 
-import io.pixel.PixelCraft;
+import io.pixel.api.event.Event;
+import io.pixel.pcall.PixelCraft;
 import org.apache.logging.log4j.Logger;
 
 public final class PixelAPI {
@@ -16,5 +17,9 @@ public final class PixelAPI {
 
     public static Logger getServerLogger(){
         return PixelCraft.LOGGER;
+    }
+
+    public static void callEvent(Event event){
+
     }
 }

@@ -5,5 +5,4 @@ server:
   timeout: 30
 auth:
   minecraft_version: '1.12.2'
-  online_mode: true
   motd: 'A pixel auth server.'

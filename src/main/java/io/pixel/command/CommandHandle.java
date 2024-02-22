@@ -1,6 +1,6 @@
 package io.pixel.command;
 
-import io.pixel.PixelCraft;
+import io.pixel.pcall.PixelCraft;
 import io.pixel.api.command.Command;
 
 import java.io.BufferedReader;
