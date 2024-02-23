@@ -6,6 +6,8 @@ import io.netty.channel.local.LocalChannel;
 import io.netty.channel.local.LocalServerChannel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import io.pixel.pcall.network.controller.NettyCompressionDecoder;
+import io.pixel.pcall.network.controller.NettyCompressionEncoder;
 import io.pixel.pcall.network.controller.NettyEncryptingDecoder;
 import io.pixel.pcall.network.controller.NettyEncryptingEncoder;
 import io.pixel.pcall.network.handle.INetHandler;
@@ -17,6 +19,7 @@ import io.pixel.pcall.util.CryptManager;
 import io.pixel.pcall.util.ThreadQuickExitException;
 import io.pixel.pcall.util.text.ITextComponent;
 import io.pixel.pcall.util.text.TextComponentTranslation;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -91,7 +94,7 @@ public class PlayerConnect extends SimpleChannelInboundHandler<Packet<?>> {
         return this.terminationReason;
     }
 
-    public void processReceivedPackets() {
+    public void update() {
         this.flushOutboundQueue();
 
         if (this.packetListener instanceof NetworkTask) {
@@ -100,6 +103,45 @@ public class PlayerConnect extends SimpleChannelInboundHandler<Packet<?>> {
 
         if (this.channel != null) {
             this.channel.flush();
+        }
+    }
+
+    public void setCompressionThreshold(int threshold) {
+        if (threshold >= 0) {
+            if (this.channel.pipeline().get("decompress") instanceof NettyCompressionDecoder) {
+                ((NettyCompressionDecoder) this.channel.pipeline().get("decompress")).setCompressionThreshold(threshold);
+            } else {
+                this.channel.pipeline().addBefore("decoder", "decompress", new NettyCompressionDecoder(threshold));
+            }
+
+            if (this.channel.pipeline().get("compress") instanceof NettyCompressionEncoder) {
+                ((NettyCompressionEncoder) this.channel.pipeline().get("compress")).setCompressionThreshold(threshold);
+            } else {
+                this.channel.pipeline().addBefore("encoder", "compress", new NettyCompressionEncoder(threshold));
+            }
+        } else {
+            if (this.channel.pipeline().get("decompress") instanceof NettyCompressionDecoder) {
+                this.channel.pipeline().remove("decompress");
+            }
+
+            if (this.channel.pipeline().get("compress") instanceof NettyCompressionEncoder) {
+                this.channel.pipeline().remove("compress");
+            }
+        }
+    }
+
+    public void sendPacket(Packet<?> packetIn, GenericFutureListener<? extends Future<? super Void>> listener, GenericFutureListener<? extends Future<? super Void>>... listeners) {
+        if (this.isChannelOpen()) {
+            this.flushOutboundQueue();
+            this.dispatchPacket(packetIn, (GenericFutureListener[]) ArrayUtils.add(listeners, 0, listener));
+        } else {
+            this.readWriteLock.writeLock().lock();
+
+            try {
+                this.outboundPacketsQueue.add(new PlayerConnect.InboundHandlerTuplePacketListener(packetIn, (GenericFutureListener[]) ArrayUtils.add(listeners, 0, listener)));
+            } finally {
+                this.readWriteLock.writeLock().unlock();
+            }
         }
     }
 

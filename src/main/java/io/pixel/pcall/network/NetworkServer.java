@@ -56,6 +56,7 @@ public class NetworkServer {
             LOGGER.error("** Unknown host name **");
             LOGGER.error("Please check your config file.");
             LOGGER.error("** Neteork server was throw exception **");
+            System.exit(-1);
         }
     }
 
@@ -66,13 +67,13 @@ public class NetworkServer {
     public void connect() throws IOException {
         synchronized (this.endpoints) {
             this.endpoints.add((new ServerBootstrap()).channel(NioServerSocketChannel.class).childHandler(new ChannelInitializer<Channel>() {
-                protected void initChannel(Channel p_initChannel_1_) throws Exception {
+                protected void initChannel(Channel channel) throws Exception {
                     try {
-                        p_initChannel_1_.config().setOption(ChannelOption.TCP_NODELAY, Boolean.valueOf(true));
+                        channel.config().setOption(ChannelOption.TCP_NODELAY, Boolean.valueOf(true));
                     } catch (ChannelException ignored) {
                     }
 
-                    p_initChannel_1_.pipeline().addLast("timeout", new ReadTimeoutHandler(timeout))
+                    channel.pipeline().addLast("timeout", new ReadTimeoutHandler(timeout))
                             .addLast("legacy_query", new LegacyPingHandler(NetworkServer.this))
                             .addLast("splitter", new NettyVarint21FrameDecoder())
                             .addLast("decoder", new NettyPacketDecoder(PacketDirection.SERVERBOUND))
@@ -80,8 +81,9 @@ public class NetworkServer {
                             .addLast("encoder", new NettyPacketEncoder(PacketDirection.CLIENTBOUND));
                     PlayerConnect connect = new PlayerConnect(PacketDirection.SERVERBOUND);
                     NetworkServer.this.connects.add(connect);
-                    p_initChannel_1_.pipeline().addLast("packet_handler", connect);
+                    channel.pipeline().addLast("packet_handler", connect);
                     connect.setNetHandler(new HandshakeTCP(server,connect));
+
                 }
             }).group(acceptGroup,connectGroup).localAddress(address, port).bind().syncUninterruptibly());
         }
@@ -95,7 +97,7 @@ public class NetworkServer {
             if(connect.hasNoChannel()){
                 if(connect.isChannelOpen()){
                     try{
-                        connect.processReceivedPackets();
+                        connect.update();
                     }catch (Exception e){
                         LOGGER.error("Player connect was throw exception.",e);
                     }

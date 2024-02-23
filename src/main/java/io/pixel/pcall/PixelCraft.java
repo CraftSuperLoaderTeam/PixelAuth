@@ -43,6 +43,7 @@ public class PixelCraft implements Runnable{
     public PixelCraft(ServerConfig config){
         this.config = config;
         this.network = new NetworkServer(this);
+        this.isRunning = true;
         this.statusResponse = new ServerStatusResponse();
         this.commandHandle = new CommandHandle(this);
         this.server_thread = new Thread(this);
@@ -129,6 +130,7 @@ public class PixelCraft implements Runnable{
             this.network.connect();
             LOGGER.info("Server load done! Type '/help'");
             while (isRunning) {
+
                 this.network.update();
             }
         }catch (IOException e){
@@ -164,5 +166,9 @@ public class PixelCraft implements Runnable{
 
     public boolean func_190518_ac() {
         return this.field_190519_A;
+    }
+
+    public int getNetworkCompressionThreshold() {
+        return 256;
     }
 }

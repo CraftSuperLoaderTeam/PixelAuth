@@ -2,18 +2,17 @@ package io.pixel.pcall.network.handle.imp;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
+import io.netty.channel.ChannelFutureListener;
 import io.pixel.api.CraftClient;
 import io.pixel.api.PixelAPI;
+import io.pixel.api.event.ClientJoinEvent;
 import io.pixel.api.event.ClientLoginEvent;
 import io.pixel.pcall.PixelCraft;
 import io.pixel.pcall.apiimp.ClientImp;
-import io.pixel.pcall.network.packet.login.PacketDisconnect;
-import io.pixel.pcall.network.packet.login.PacketEncryptionRequest;
+import io.pixel.pcall.network.packet.login.*;
 import io.pixel.pcall.network.NetworkServer;
 import io.pixel.pcall.network.PlayerConnect;
 import io.pixel.pcall.network.handle.ILoginServer;
-import io.pixel.pcall.network.packet.login.PacketEncryptionResponse;
-import io.pixel.pcall.network.packet.login.PacketLoginStart;
 import io.pixel.schedule.NetworkTask;
 import io.pixel.pcall.util.CryptManager;
 import io.pixel.pcall.util.text.ITextComponent;
@@ -41,6 +40,7 @@ public class LoginServer implements ILoginServer, NetworkTask {
     private SecretKey secretKey;
     private final byte[] verifyToken = new byte[4];
     LoginState state;
+    CraftClient client;
     private int connectionTimer;
     private GameProfile loginGameProfile;
 
@@ -126,7 +126,7 @@ public class LoginServer implements ILoginServer, NetworkTask {
     }
 
     public void onLogin(){
-        CraftClient client = new ClientImp(this.loginGameProfile,this.connect.getRemoteAddress()){
+        this.client = new ClientImp(this.loginGameProfile,this.connect.getRemoteAddress()){
             @Override
             public void disconnect(String message) {
                 super.disconnect(message);
@@ -135,9 +135,27 @@ public class LoginServer implements ILoginServer, NetworkTask {
         };
         ClientLoginEvent event = new ClientLoginEvent(client);
         PixelAPI.callEvent(event);
-        if(event.getClient().isDisconnect()) return;
-        String message = "您已成功登录至AuthServer,此操作为正常踢出服务器";
-        this.disconnect(new TextComponentString(message));
+
+        if (!this.loginGameProfile.isComplete()) {
+            this.loginGameProfile = this.getOfflineProfile(this.loginGameProfile);
+        }
+
+        this.state = LoginState.ACCEPTED;
+
+        if (this.server.getNetworkCompressionThreshold() >= 0 && !this.connect.isLocalChannel()) {
+            this.connect.sendPacket(new PacketEnableCompression(this.server.getNetworkCompressionThreshold()),
+                    (ChannelFutureListener) p_operationComplete_1_ ->
+                            LoginServer.this.connect.setCompressionThreshold(
+                                    LoginServer.this.server.getNetworkCompressionThreshold()));
+        }
+
+        /*
+        this.connect.sendPacket(new PacketLoginSuccess(this.loginGameProfile));
+        ClientJoinEvent event1 = new ClientJoinEvent(client);
+        PixelAPI.callEvent(event1);
+
+         */
+        disconnect(new TextComponentString("Auth server kick."));
     }
 
     protected GameProfile getOfflineProfile(GameProfile original) {
@@ -147,7 +165,16 @@ public class LoginServer implements ILoginServer, NetworkTask {
 
     @Override
     public void update() {
-        if (this.state == LoginState.READY_TO_ACCEPT || this.state == LoginState.DELAY_ACCEPT) ;
+        if (this.state == LoginState.READY_TO_ACCEPT) {
+            this.connect.sendPacket(new PacketLoginSuccess(this.loginGameProfile));
+            ClientJoinEvent event = new ClientJoinEvent(client);
+            PixelAPI.callEvent(event);
+
+            disconnect(new TextComponentString("您已完成AuthServer验证"));
+            return;
+        }else if(this.state == LoginState.DELAY_ACCEPT) {
+            state = LoginState.READY_TO_ACCEPT;
+        }
         if (this.connectionTimer++ == 600) {
             this.disconnect(new TextComponentTranslation("multiplayer.disconnect.slow_login", new Object[0]));
         }

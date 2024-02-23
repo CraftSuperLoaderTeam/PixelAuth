@@ -18,7 +18,6 @@ public class PacketLoginSuccess implements Packet<ILoginClient> {
         this.profile = profileIn;
     }
 
-
     public void readPacketData(PacketBuffer buf) throws IOException {
         String s = buf.readStringFromBuffer(36);
         String s1 = buf.readStringFromBuffer(16);
